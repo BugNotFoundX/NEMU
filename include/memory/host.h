@@ -82,7 +82,7 @@ static inline void host_read_matrix(paddr_t pbase, paddr_t stride, int row,
 #endif // CONFIG_RV_AME
 
 static inline void host_write(void *addr, int len, word_t data) {
-  Logm("write: addr = %p, len = %d, data = 0x%lx", addr, len, data);
+  Logm("write: addr = %p, len = %d, data = " FMT_WORD, addr, len, data);
   switch (len) {
     case 1: *(uint8_t  *)addr = data; return;
     case 2: *(uint16_t *)addr = data; return;

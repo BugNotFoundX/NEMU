@@ -49,9 +49,9 @@ def_EHelper(c_jal) {
 }
 
 def_EHelper(c_jr) {
-//  IFDEF(CONFIG_ENGINE_INTERPRETER, rtl_andi(s, s0, s0, ~0x1u));
+  rtl_andi(s, s0, dsrc1, ~0x1u);
   IFNDEF(CONFIG_DIFFTEST_REF_NEMU, difftest_skip_dut(1, 2));
-  rtl_jr(s, dsrc1);
+  rtl_jr(s, s0);
 }
 
 def_EHelper(c_beqz) {

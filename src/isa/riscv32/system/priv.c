@@ -51,7 +51,8 @@ static word_t priv_instr(uint32_t op, const rtlreg_t *src) {
   return 0;
 }
 
-void isa_hostcall(uint32_t id, rtlreg_t *dest, const rtlreg_t *src, uint32_t imm) {
+void isa_hostcall(uint32_t id, rtlreg_t *dest, const rtlreg_t *src,
+    const rtlreg_t *src2, word_t imm) {
   word_t ret = 0;
   switch (id) {
     case HOSTCALL_CSR: csrrw(dest, src, imm); return;

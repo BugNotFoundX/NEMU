@@ -247,8 +247,13 @@ config DIFFTEST_REF_SPIKE
 endchoice
 
 config DIFFTEST_STORE_COMMIT
-  depends on DIFFTEST_REF_SPIKE
+  depends on DIFFTEST_REF_SPIKE || SHARE_REF
   bool "Check the data of the store class instruction"
+  default n
+
+config MICRO_PLATFORM
+  bool "micro integer simulation platform"
+  depends on SHARE_REF && (ISA_riscv32 || ISA_riscv64)
   default n
 
 config AME_REG_ACCESS_CHECK
@@ -481,6 +486,7 @@ config GUIDED_TVAL
     If this option is not enabled, NEMU fires the vector pf on the first element.
 
 config QUERY_REF
+  depends on ISA_riscv64
   depends on SHARE
   bool "Enable event query support when used as difftest ref"
   default y

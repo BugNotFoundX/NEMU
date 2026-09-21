@@ -150,6 +150,7 @@ void difftest_uarchstatus_cpy(void *dut, bool direction) {
 }
 #endif // CONFIG_LIGHTQS
 
+#endif // RV64_FULL_DIFF
 int difftest_store_commit(uint64_t *saddr, uint64_t *sdata, uint8_t *smask) {
 #ifdef CONFIG_DIFFTEST_STORE_COMMIT
   return check_store_commit(saddr, sdata, smask);
@@ -158,6 +159,7 @@ int difftest_store_commit(uint64_t *saddr, uint64_t *sdata, uint8_t *smask) {
 #endif
 }
 
+#ifdef RV64_FULL_DIFF
 int difftest_matrix_store_commit(uint64_t *base, uint64_t *stride,
                                  uint32_t *row, uint32_t *column, uint32_t *msew,
                                  bool *transpose) {
@@ -256,6 +258,7 @@ void difftest_raise_mhpmevent_overflow(uint64_t mhpmeventOverflowVec) {
 #endif
 }
 
+#ifdef CONFIG_ISA_riscv64
 void difftest_non_reg_interrupt_pending(void *nonRegInterruptPending) {
   difftest_mark_csr_dirty();
   memcpy(&cpu.non_reg_interrupt_pending, nonRegInterruptPending, sizeof(struct NonRegInterruptPending));
@@ -270,6 +273,8 @@ void difftest_non_reg_interrupt_pending(void *nonRegInterruptPending) {
   isa_update_vstopi();
 #endif
 }
+
+#endif
 
 void difftest_interrupt_delegate(void *interruptDelegate) {
 #ifdef CONFIG_RV_IMSIC
@@ -374,9 +379,11 @@ void difftest_sync_aia(void *src) {
 #endif
 }
 
+#ifdef CONFIG_ISA_riscv64
 void difftest_sync_custom_mflushpwr(bool l2FlushDone) {
   isa_sync_custom_mflushpwr(l2FlushDone);
 }
+#endif
 
 void difftest_enable_debug() {
 #ifdef CONFIG_SHARE
@@ -411,6 +418,10 @@ void difftest_init() {
 
   /* Perform ISA dependent initialization. */
   init_isa();
+#ifdef CONFIG_MICRO_PLATFORM
+  void init_micro(void);
+  init_micro();
+#endif
   /* create dummy address space for serial */
   //add_mmio_map("difftest.serial", 0xa10003f8, new_space(8), 8, NULL);
 
@@ -423,7 +434,7 @@ void difftest_init_v2(unsigned state_size) {
   difftest_init();
   if (state_size != DIFFTEST_REG_SIZE) {
     printf("ERROR: NEMU (%uB) is configured with different states than DUT (%uB).\n",
-        DIFFTEST_REG_SIZE, state_size);
+        (unsigned)DIFFTEST_REG_SIZE, state_size);
     assert(false);
   }
 }
@@ -462,6 +473,7 @@ void difftest_store_log_restore() {
 #endif
 #endif // CONFIG_STORE_LOG
 
+#ifdef CONFIG_ISA_riscv64
 extern void set_store_cpt_in_flash(bool enable);
 extern void serialize_checkpoint(const char *base_filepath);
 
@@ -474,3 +486,4 @@ void difftest_trigger_checkpoint(const char *base_filepath) {
   set_store_cpt_in_flash(true);
   serialize_checkpoint(base_filepath);
 }
+#endif

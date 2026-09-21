@@ -16,6 +16,8 @@
 #include <isa.h>
 #include <memory/paddr.h>
 #include <memory/vaddr.h>
+#include <cpu/cpu.h>
+#include "../local-include/intr.h"
 
 #ifndef __ICS_EXPORT
 /* the 32bit Page Table Entry(second level page table) data structure */
@@ -69,16 +71,16 @@ static paddr_t ptw(vaddr_t vaddr, int type) {
   paddr_t pdir_base = cpu.satp.ppn << 12;
 
   PTE pde;
-  pde.val	= paddr_read(pdir_base + addr->pdir_idx * 4, 4, MEM_TYPE_READ, MODE_S, vaddr);
+  pde.val = paddr_read(pdir_base + addr->pdir_idx * 4, 4, MEM_TYPE_READ, MEM_TYPE_READ, MODE_S, vaddr);
   if (!pde.valid) {
-    panic("pc = %x, vaddr = %x, pdir_base = %x, pde = %x", cpu.pc, vaddr, pdir_base, pde.val);
+    panic("pc = %x, vaddr = %x, pdir_base = " FMT_PADDR ", pde = %x", cpu.pc, vaddr, pdir_base, pde.val);
   }
 
   paddr_t pt_base = pde.ppn << 12;
   PTE pte;
-  pte.val = paddr_read(pt_base + addr->pt_idx * 4, 4, MEM_TYPE_READ, MODE_S, vaddr);
+  pte.val = paddr_read(pt_base + addr->pt_idx * 4, 4, MEM_TYPE_READ, MEM_TYPE_READ, MODE_S, vaddr);
   if (!pte.valid) {
-    panic("pc = %x, vaddr = %x, pt_base = %x, pte = %x", cpu.pc, vaddr, pt_base, pte.val);
+    panic("pc = %x, vaddr = %x, pt_base = " FMT_PADDR ", pte = %x", cpu.pc, vaddr, pt_base, pte.val);
   }
 
   // update TLB
@@ -110,4 +112,21 @@ bool isa_pmp_check_permission(paddr_t addr, int len, int type, int mode) {
 
 vaddr_t get_effective_address(vaddr_t vaddr, int type) {
   return vaddr;
+}
+
+// This platform has flat RAM and two naturally aligned MMIO registers.
+bool isa_pma_check_permission(paddr_t addr, int len, int type) {
+  if (len <= 0 || len > 4) return false;
+  if (in_pmem(addr) && in_pmem(addr + len - 1)) return true;
+#ifdef CONFIG_MICRO_PLATFORM
+  return type == MEM_TYPE_WRITE &&
+    ((addr == 0x10000000 && len == 1) || (addr == 0x10000004 && len == 4));
+#else
+  return type != MEM_TYPE_IFETCH;
+#endif
+}
+
+void isa_misalign_data_addr_check(vaddr_t addr, int len, int type) {
+  if (addr & (len - 1))
+    longjmp_exception(type == MEM_TYPE_WRITE ? EX_SAM : EX_LAM);
 }

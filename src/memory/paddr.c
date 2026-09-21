@@ -29,7 +29,10 @@
 #include <stdlib.h>
 #include <time.h>
 #include <cpu/cpu.h>
+#include <cpu/decode.h>
+#ifdef CONFIG_ISA_riscv64
 #include "../local-include/csr.h"
+#endif
 #include "../local-include/intr.h"
 
 unsigned long MEMORY_SIZE = CONFIG_MSIZE;
@@ -186,10 +189,12 @@ static inline void pmem_write_matrix(paddr_t base, paddr_t stride,
 #endif // CONFIG_RV_AME
 
 static inline void raise_access_fault(int cause, vaddr_t vaddr) {
+#ifdef CONFIG_ISA_riscv64
   cpu.trapInfo.tval = vaddr;
   // cpu.amo flag must be reset to false before longjmp_exception,
   // including longjmp_exception(access fault), longjmp_exception(page fault)
   cpu.amo = false;
+#endif
   longjmp_exception(cause);
 }
 
@@ -197,13 +202,13 @@ static inline void raise_read_access_fault(int type, vaddr_t vaddr) {
   int cause = EX_LAF;
   if (type == MEM_TYPE_IFETCH || type == MEM_TYPE_IFETCH_READ) {
     cause = EX_IAF;
-  } else if (cpu.amo || type == MEM_TYPE_WRITE || type == MEM_TYPE_WRITE_READ || type == MEM_TYPE_MATRIX_WRITE) {
+  } else if (MUXDEF(CONFIG_ISA_riscv64, cpu.amo, false) || type == MEM_TYPE_WRITE || type == MEM_TYPE_WRITE_READ || type == MEM_TYPE_MATRIX_WRITE) {
     cause = EX_SAF;
   }
   raise_access_fault(cause, vaddr);
 }
 
-#ifdef CONFIG_SHARE
+#if defined(CONFIG_SHARE) && defined(CONFIG_ISA_riscv64)
 static inline void hardware_error_check(vaddr_t vaddr) {
   if (cpu.guided_exec && cpu.execution_guide.force_raise_exception && cpu.execution_guide.exception_num == EX_HWE
       IFDEF(CONFIG_GUIDED_TVAL, && vaddr == SELECT_DUT_INTR_TVAL_REG(EX_HWE))
@@ -218,10 +223,10 @@ static inline void hardware_error_check(vaddr_t vaddr) {
 // MMIO access currently does not support hardware misalignment.
 void isa_mmio_misalign_data_addr_check(paddr_t paddr, vaddr_t vaddr, int len, int type, int is_cross_page) {
   if (unlikely((paddr & (len - 1)) != 0) || is_cross_page) {
-    Logm("addr misaligned happened: paddr:" FMT_PADDR " vaddr:" FMT_WORD " len:%d type:%d pc:%lx", paddr, vaddr, len, type, cpu.pc);
+    Logm("addr misaligned happened: paddr:" FMT_PADDR " vaddr:" FMT_WORD " len:%d type:%d pc:" FMT_WORD, paddr, vaddr, len, type, cpu.pc);
     if (ISDEF(CONFIG_MMIO_AC_SOFT)) {
-      int ex = cpu.amo || type == MEM_TYPE_WRITE ? EX_SAM : EX_LAM;
-      cpu.trapInfo.tval = vaddr;
+      int ex = MUXDEF(CONFIG_ISA_riscv64, cpu.amo, false) || type == MEM_TYPE_WRITE ? EX_SAM : EX_LAM;
+      IFDEF(CONFIG_ISA_riscv64, cpu.trapInfo.tval = vaddr;)
       longjmp_exception(ex);
     }
   }
@@ -373,10 +378,10 @@ bool mpt_paddr_read(paddr_t addr, int len, word_t *data) {
 static inline bool paddr_read_check(paddr_t addr, int len, int type,
                                     int trap_type, int mode, vaddr_t vaddr,
                                     int cross_page_load) {
-  IFDEF(CONFIG_SHARE, hardware_error_check(vaddr);)
+  IFDEF(CONFIG_ISA_riscv64, IFDEF(CONFIG_SHARE, hardware_error_check(vaddr);))
 
   assert(type == MEM_TYPE_READ || type == MEM_TYPE_IFETCH_READ || type == MEM_TYPE_IFETCH || type == MEM_TYPE_WRITE_READ || type == MEM_TYPE_MATRIX_READ || type == MEM_TYPE_MATRIX_WRITE);
-  if (cpu.pbmt != 0) {
+  if (MUXDEF(CONFIG_ISA_riscv64, cpu.pbmt, 0) != 0) {
     isa_mmio_misalign_data_addr_check(addr, vaddr, len, MEM_TYPE_READ, cross_page_load);
   }
 
@@ -421,7 +426,7 @@ word_t paddr_read(paddr_t addr, int len, int type, int trap_type, int mode, vadd
   else {
     if (likely(is_in_mmio(addr))) {
       // check if the address is misaligned
-      if (cpu.isVldst) {
+      if (MUXDEF(CONFIG_ISA_riscv64, cpu.isVldst, false)) {
         raise_read_access_fault(trap_type, vaddr);
         return 0;
       }
@@ -597,12 +602,12 @@ void pmem_record_reset() {
 #endif // CONFIG_STORE_LOG
 
 void paddr_write(paddr_t addr, int len, word_t data, int mode, vaddr_t vaddr) {
-  IFDEF(CONFIG_SHARE, hardware_error_check(vaddr);)
+  IFDEF(CONFIG_ISA_riscv64, IFDEF(CONFIG_SHARE, hardware_error_check(vaddr);))
 
   int cross_page_store = (mode & CROSS_PAGE_ST_FLAG) != 0;
   // get mode's original value
   mode = mode & ~CROSS_PAGE_ST_FLAG;
-  if (cpu.pbmt != 0) {
+  if (MUXDEF(CONFIG_ISA_riscv64, cpu.pbmt, 0) != 0) {
     isa_mmio_misalign_data_addr_check(addr, vaddr, len, MEM_TYPE_WRITE, cross_page_store);
   }
 
@@ -627,7 +632,7 @@ void paddr_write(paddr_t addr, int len, word_t data, int mode, vaddr_t vaddr) {
   else {
     if (likely(is_in_mmio(addr))) {
       // check if the address is misaligned
-      if (cpu.isVldst) {
+      if (MUXDEF(CONFIG_ISA_riscv64, cpu.isVldst, false)) {
         raise_access_fault(EX_SAF, vaddr);
         return;
       }
@@ -771,18 +776,18 @@ void store_commit_queue_push(uint64_t addr, uint64_t data, int len,
                              int cross_page_store) {
 
 #ifndef CONFIG_DIFFTEST_STORE_COMMIT_AMO
-  if (cpu.amo) {
+  if (MUXDEF(CONFIG_ISA_riscv64, cpu.amo, false)) {
     return;
   }
 #endif // CONFIG_DIFFTEST_STORE_COMMIT_AMO
 
-  Logm("push store addr = " FMT_PADDR ", data = " FMT_WORD ", len = %d", addr,
+  Logm("push store addr = 0x%016lx, data = 0x%016lx, len = %d", addr,
        data, len);
 
   // check if len is 1, 2, 4, 8 or cross page store or isVecUnitStore
   // maybe isVecUnitStore check is useless there
   Assert(len > 0 && len <= 8 &&
-             (IS_POW_OF_2(len) || cross_page_store || cpu.isVecUnitStore),
+             (IS_POW_OF_2(len) || cross_page_store || MUXDEF(CONFIG_ISA_riscv64, cpu.isVecUnitStore, false)),
          "Invalid len %d", len);
 
   // align to 8B boundary, because max len is 64b

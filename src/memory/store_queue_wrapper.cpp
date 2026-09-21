@@ -34,7 +34,7 @@ void store_queue_push(store_commit_t store_commit) {
   if (store_queue_has_overflow) {
     return;
   }
-  Logm("push store addr = " FMT_PADDR ", data = " FMT_WORD ", mask = 0x%x", store_commit.addr, store_commit.data, store_commit.mask);
+  Logm("push store addr = 0x%016lx, data = 0x%016lx, mask = 0x%x", store_commit.addr, store_commit.data, store_commit.mask);
   cpp_store_event_queue.push(store_commit);
   if (cpp_store_event_queue.size() >= CONFIG_DIFFTEST_STORE_QUEUE_SIZE) {
     store_queue_has_overflow = true;

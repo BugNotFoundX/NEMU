@@ -18,6 +18,8 @@
 
 #include <common.h>
 
+enum { EX_IAM, EX_IAF, EX_II, EX_BP, EX_LAM, EX_LAF, EX_SAM, EX_SAF };
+
 word_t raise_intr(uint32_t NO, vaddr_t epc);
 
 #endif

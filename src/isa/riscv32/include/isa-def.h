@@ -18,12 +18,16 @@
 
 #include <common.h>
 
+enum { MODE_U = 0, MODE_S = 1, MODE_M = 3 };
+
 typedef struct {
   struct {
     rtlreg_t _32;
   } gpr[32];
 
   vaddr_t pc;
+  // Privilege is internal state, outside the GPR + PC DiffTest wire prefix.
+  uint32_t mode;
 #ifndef __ICS_EXPORT
   vaddr_t stvec;
   vaddr_t scause;

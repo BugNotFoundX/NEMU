@@ -18,6 +18,10 @@
 #include <cpu/decode.h>
 #include <isa-all-instr.h>
 
+/* RV32's opcode tables predate the common decoder's width argument. */
+#undef CASE_ENTRY
+#define CASE_ENTRY(idx, id, tab) case idx: id(s, 0); return tab(s);
+
 def_all_THelper();
 
 // decode operand helper
@@ -43,13 +47,13 @@ static inline def_DHelper(I) {
 }
 
 static inline def_DHelper(U) {
-  decode_op_i(s, id_src1, s->isa.instr.u.imm31_12 << 12, true);
+  decode_op_i(s, id_src1, (uint32_t)s->isa.instr.u.imm31_12 << 12, true);
   decode_op_r(s, id_dest, s->isa.instr.u.rd, false);
 }
 
 static inline def_DHelper(S) {
   decode_op_r(s, id_src1, s->isa.instr.s.rs1, true);
-  sword_t simm = (s->isa.instr.s.simm11_5 << 5) | s->isa.instr.s.imm4_0;
+  sword_t simm = ((uint32_t)s->isa.instr.s.simm11_5 << 5) | s->isa.instr.s.imm4_0;
   decode_op_i(s, id_src2, simm, false);
   decode_op_r(s, id_dest, s->isa.instr.s.rs2, true);
 }
@@ -62,7 +66,7 @@ static inline def_DHelper(R) {
 }
 
 static inline def_DHelper(J) {
-  sword_t offset = (s->isa.instr.j.simm20 << 20) | (s->isa.instr.j.imm19_12 << 12) |
+  sword_t offset = ((uint32_t)s->isa.instr.j.simm20 << 20) | (s->isa.instr.j.imm19_12 << 12) |
     (s->isa.instr.j.imm11 << 11) | (s->isa.instr.j.imm10_1 << 1);
   decode_op_i(s, id_src1, s->pc + offset, true);
   decode_op_r(s, id_dest, s->isa.instr.j.rd, false);
@@ -70,7 +74,7 @@ static inline def_DHelper(J) {
 }
 
 static inline def_DHelper(B) {
-  sword_t offset = (s->isa.instr.b.simm12 << 12) | (s->isa.instr.b.imm11 << 11) |
+  sword_t offset = ((uint32_t)s->isa.instr.b.simm12 << 12) | (s->isa.instr.b.imm11 << 11) |
     (s->isa.instr.b.imm10_5 << 5) | (s->isa.instr.b.imm4_1 << 1);
   decode_op_i(s, id_dest, s->pc + offset, true);
   decode_op_r(s, id_src1, s->isa.instr.b.rs1, true);
@@ -78,7 +82,7 @@ static inline def_DHelper(B) {
 }
 
 static inline def_DHelper(auipc) {
-  decode_U(s);
+  decode_U(s, 0);
   id_src1->imm += s->pc;
 }
 
@@ -157,6 +161,9 @@ def_THelper(op_imm_c) {
 }
 
 def_THelper(op_imm) {
+  if (s->isa.instr.i.funct3 == 1 && s->isa.instr.r.funct7 != 0) return EXEC_ID_inv;
+  if (s->isa.instr.i.funct3 == 5 && s->isa.instr.r.funct7 != 0 &&
+      s->isa.instr.r.funct7 != 32) return EXEC_ID_inv;
   if (s->isa.instr.i.rd == s->isa.instr.i.rs1) return table_op_imm_c(s);
   if (s->isa.instr.r.funct7 == 32) {
     switch (s->isa.instr.r.funct3) { TAB(5, srai) }
@@ -169,6 +176,8 @@ def_THelper(op_imm) {
 };
 
 def_THelper(op) {
+  if (s->isa.instr.r.funct7 != 0 && s->isa.instr.r.funct7 != 1 &&
+      s->isa.instr.r.funct7 != 32) return EXEC_ID_inv;
   if (s->isa.instr.r.funct7 == 32) {
     if (s->isa.instr.r.rd == s->isa.instr.r.rs1) {
       switch (s->isa.instr.r.funct3) {
@@ -241,6 +250,7 @@ def_THelper(jal_dispatch) {
 }
 
 def_THelper(jalr_dispatch) {
+  if (s->isa.instr.i.funct3 != 0) return EXEC_ID_inv;
   if (s->isa.instr.i.rd == 0 && id_src2->imm == 0) {
     if (s->isa.instr.i.rs1 == 1) return table_p_ret(s);
     else return table_c_jr(s);
@@ -248,9 +258,16 @@ def_THelper(jalr_dispatch) {
   return table_jalr(s);
 }
 
+def_THelper(misc_mem) {
+  /* FENCE and FENCE.I are serialized no-ops in the integer reference. */
+  if (s->isa.instr.i.funct3 <= 1) return EXEC_ID_fence;
+  return EXEC_ID_inv;
+}
+
 def_THelper(main) {
   switch (s->isa.instr.i.opcode6_2) {
     IDTAB(000, I, load)
+    TAB(003, misc_mem)
     IDTAB(004, I, op_imm) IDTAB(005, auipc, auipc)
     IDTAB(010, S, store)
     IDTAB(014, R, op)     IDTAB(015, U, lui)

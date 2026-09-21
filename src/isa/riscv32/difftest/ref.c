@@ -15,7 +15,11 @@
 
 #include <isa.h>
 #include <difftest.h>
+#include <stddef.h>
 #include "../local-include/intr.h"
+
+_Static_assert(offsetof(CPU_state, pc) == 32 * sizeof(uint32_t), "RV32 register wire prefix");
+_Static_assert(DIFFTEST_REG_SIZE == offsetof(CPU_state, pc) + sizeof(cpu.pc), "RV32 register wire size");
 
 void isa_difftest_regcpy(void *dut, bool direction) {
   if (direction == DIFFTEST_TO_REF) memcpy(&cpu, dut, DIFFTEST_REG_SIZE);

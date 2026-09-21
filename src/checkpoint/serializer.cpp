@@ -25,9 +25,11 @@
 #include <cstdio>
 #include <profiling/profiling_control.h>
 
-#include "../isa/riscv64/local-include/csr.h"
 #include <common.h>
 #include <isa.h>
+#ifdef CONFIG_ISA_riscv64
+#include "../isa/riscv64/local-include/csr.h"
+#endif
 
 #include <cinttypes>
 #include <iostream>
@@ -374,6 +376,10 @@ void Serializer::serializePMem(uint64_t inst_count, uint8_t *pmem_addr, uint8_t 
 }
 
 void Serializer::serializeRegs(uint8_t* serialize_base_addr) {
+#ifndef CONFIG_ISA_riscv64
+  fprintf(stderr, "The checkpoint register format currently supports RV64 only\n");
+  abort();
+#else
   auto *intRegCpt = (uint64_t *) (serialize_base_addr + int_reg_cpt_addr);
   for (unsigned i = 0; i < 32; i++) {
     *(intRegCpt + i) = cpu.gpr[i]._64;
@@ -473,6 +479,7 @@ void Serializer::serializeRegs(uint8_t* serialize_base_addr) {
   Log("Record mtimecmp: 0x%lx at addr 0x%x", *mtime_cmp, MTIME_CMP_CPT_ADDR);
 
   regDumped = true;
+#endif
 }
 
 void Serializer::serialize(uint64_t inst_count, const char *checkpoint_base_path) {

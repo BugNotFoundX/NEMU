@@ -39,9 +39,11 @@ static paddr_t vaddr_trans_and_check_exception(vaddr_t vaddr, int len, int type,
   if (*exp) {
     return 0;
   }
+#ifdef CONFIG_ISA_riscv64
   if (cpu.pbmt != 0) {
     isa_mmio_misalign_data_addr_check(paddr, vaddr, len, type, true);
   }
+#endif
   *exp = !check_paddr(paddr, len, type, type, cpu.mode, vaddr);
   return paddr;
 }
@@ -294,7 +296,7 @@ word_t vaddr_ifetch(vaddr_t addr, int len) {
 }
 
 word_t vaddr_read(struct Decode *s, vaddr_t addr, int len, int mmu_mode) {
-  Logm("Reading vaddr %lx", addr);
+  Logm("Reading vaddr " FMT_WORD, addr);
   return vaddr_read_internal(s, addr, len, MEM_TYPE_READ, mmu_mode);
 }
 

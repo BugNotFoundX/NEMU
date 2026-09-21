@@ -21,8 +21,10 @@
 
 enum { DIFFTEST_TO_DUT, DIFFTEST_TO_REF };
 
+#ifdef __ISA_riscv64__
 #define RV64_FULL_DIFF
 #define RV64_UARCH_SYNC
+#endif
 
 #if defined(__ISA_x86__)
 # define DIFFTEST_REG_SIZE (sizeof(uint32_t) * 9) // GPRs + PC

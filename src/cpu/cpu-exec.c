@@ -31,8 +31,10 @@
 #endif
 #include <profiling/profiling_control.h>
 #include <checkpoint/semantic_point.h>
+#ifdef CONFIG_ISA_riscv64
 #include "../local-include/trigger.h"
 #include "../local-include/aia.h"
+#endif
 #include "macro.h"
 
 /* The assembly code of instructions executed is only output to the screen
@@ -740,8 +742,7 @@ static void execute(int n) {
 #ifdef CONFIG_LIGHTQS_DEBUG
     printf("ahead pc %lx %lx\n", g_nr_guest_instr, cpu.pc);
 #endif // CONFIG_LIGHTQS_DEBUG
-    cpu.amo = false;
-    cpu.pbmt = 0;
+    IFDEF(CONFIG_ISA_riscv64, cpu.amo = false; cpu.pbmt = 0;)
 
     if (g_sys_state_flag & SYS_STATE_FLUSH_TCACHE) {
       tcache_handle_flush();
@@ -762,7 +763,7 @@ static void execute(int n) {
       s = *cache_s;
     }
 
-    cpu.debug.current_pc = s.pc;
+    IFDEF(CONFIG_ISA_riscv64, cpu.debug.current_pc = s.pc;)
     cpu.pc = s.snpc;
     ref_log_cpu("pc = 0x%lx inst %x", s.pc, s.isa.instr.val);
 
@@ -918,10 +919,12 @@ void cpu_exec(uint64_t n) {
       IFDEF(CONFIG_TDATA1_ETRIGGER, trig_action_t action = check_triggers_etrigger(cpu.TM, g_ex_cause));
 
       cpu.pc = raise_intr(g_ex_cause, prev_s->pc);
+#ifdef CONFIG_ISA_riscv64
       cpu.amo = false; // clean up
       cpu.pbmt = 0;
       cpu.isVldst = false;
       cpu.isVecUnitStore = false;
+#endif
 #ifdef CONFIG_RVH
       // HLV/HLVX/HSV set these transient translation controls around the
       // memory operation. A fault leaves through longjmp, bypassing the

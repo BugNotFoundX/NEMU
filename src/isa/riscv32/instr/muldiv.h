@@ -48,18 +48,24 @@ def_EHelper(mulhsu) {
 }
 
 def_EHelper(div) {
-  rtl_divs_q(s, ddest, dsrc1, dsrc2);
+  if (*dsrc2 == 0) rtl_li(s, ddest, UINT32_MAX);
+  else if (*dsrc1 == 0x80000000u && *dsrc2 == UINT32_MAX) rtl_li(s, ddest, 0x80000000u);
+  else rtl_divs_q(s, ddest, dsrc1, dsrc2);
 }
 
 def_EHelper(divu) {
-  rtl_divu_q(s, ddest, dsrc1, dsrc2);
+  if (*dsrc2 == 0) rtl_li(s, ddest, UINT32_MAX);
+  else rtl_divu_q(s, ddest, dsrc1, dsrc2);
 }
 
 def_EHelper(rem) {
-  rtl_divs_r(s, ddest, dsrc1, dsrc2);
+  if (*dsrc2 == 0) rtl_mv(s, ddest, dsrc1);
+  else if (*dsrc1 == 0x80000000u && *dsrc2 == UINT32_MAX) rtl_li(s, ddest, 0);
+  else rtl_divs_r(s, ddest, dsrc1, dsrc2);
 }
 
 def_EHelper(remu) {
-  rtl_divu_r(s, ddest, dsrc1, dsrc2);
+  if (*dsrc2 == 0) rtl_mv(s, ddest, dsrc1);
+  else rtl_divu_r(s, ddest, dsrc1, dsrc2);
 }
 #endif
