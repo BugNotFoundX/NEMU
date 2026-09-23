@@ -27,5 +27,7 @@ def_EHelper(nemu_trap) {
 
 def_EHelper(ebreak) { exec_inv(s); }
 
-// No instruction/data cache in the RV32 interpreter.
-def_EHelper(fence) { }
+// FENCE.I must invalidate decoded instructions after stores to executable memory.
+def_EHelper(fence) {
+  if (s->isa.instr.i.funct3 == 1) set_sys_state_flag(SYS_STATE_FLUSH_TCACHE);
+}

@@ -259,7 +259,7 @@ def_THelper(jalr_dispatch) {
 }
 
 def_THelper(misc_mem) {
-  /* FENCE and FENCE.I are serialized no-ops in the integer reference. */
+  /* Share a helper; FENCE.I also invalidates the interpreter's decode cache. */
   if (s->isa.instr.i.funct3 <= 1) return EXEC_ID_fence;
   return EXEC_ID_inv;
 }
