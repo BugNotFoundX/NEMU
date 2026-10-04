@@ -49,6 +49,8 @@ bool fp_enable() {
 }
 
 void fp_set_dirty() {
+  // FP execution changes both FS and accrued FCSR flags outside csr_write().
+  IFDEF(CONFIG_SHARE, csr_difftest_mark_dirty());
   mstatus->fs = EXT_CONTEXT_DIRTY;
 #ifdef CONFIG_RVH
   if (cpu.v == 1) {
