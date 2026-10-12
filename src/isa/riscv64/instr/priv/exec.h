@@ -15,13 +15,13 @@
 ***************************************************************************************/
 
 def_EHelper(ecall) {
+  // Synchronous traps do not retire; use the same exit path as illegal accesses.
+  save_globals(s);
 #ifdef CONFIG_RVH
-  rtl_trap(s, s->pc, 8 + cpu.mode + (cpu.mode == MODE_S && cpu.v));
+  longjmp_exception(8 + cpu.mode + (cpu.mode == MODE_S && cpu.v));
 #else
-  rtl_trap(s, s->pc, 8 + cpu.mode);
+  longjmp_exception(8 + cpu.mode);
 #endif
-  rtl_mv(s, s0, t0);
-  rtl_priv_jr(s, s0);
 }
 
 def_EHelper(ebreak) {
@@ -30,9 +30,8 @@ def_EHelper(ebreak) {
   rtl_hostcall(s, HOSTCALL_EXIT, NULL, &cpu.gpr[10]._64, NULL, 0); // gpr[10] is $a0
   longjmp_context(NEMU_EXEC_END);
 #else // CONFIG_EBREAK_AS_TRAP
-  rtl_trap(s, s->pc, 3);
-  rtl_mv(s, s0, t0);
-  rtl_priv_jr(s, s0);
+  save_globals(s);
+  longjmp_exception(3);
 #endif // CONFIG_EBREAK_AS_TRAP
 }
 

@@ -72,9 +72,8 @@ def_EHelper(c_ebreak) {
     rtl_hostcall(s, HOSTCALL_EXIT, NULL, &cpu.gpr[10]._64, NULL, 0); // gpr[10] is $a0
     longjmp_context(NEMU_EXEC_END);
   #else // CONFIG_EBREAK_AS_TRAP
-    rtl_trap(s, s->pc, 3);
-    rtl_mv(s, s0, t0);
-    rtl_priv_jr(s, s0);
+    save_globals(s);
+    longjmp_exception(3);
   #endif // CONFIG_EBREAK_AS_TRAP
 }
 
